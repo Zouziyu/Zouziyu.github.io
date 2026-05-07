@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; background: #1a1a1a;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  .calculator {
+    width: 440px; background: #2d2d2d; border-radius: 12px;
+    padding: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; margin-bottom: 10px; }
+  .tab {
+    flex:1; padding: 8px 0; text-align: center; cursor: pointer;
+    background: #3a3a3a; color: #aaa; border: none; border-radius: 6px 6px 0 0;
+    font-size: 0.8rem; transition: background 0.15s;
+  }
+  .tab.active { background: #1e1e1e; color: #fff; }
+
+  /* Display */
+  .display {
+    background: #1e1e1e; border-radius: 8px; padding: 12px 16px;
+    margin-bottom: 8px; min-height: 72px;
+    display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
+  }
+  .display-expr {
+    color: #888; font-size: 1rem; min-height: 1.2em;
+    word-break: break-all; text-align: right; width: 100%;
+  }
+  .display-result {
+    color: #fff; font-size: 2rem; min-height: 1.2em;
+    word-break: break-all; text-align: right; width: 100%;
+  }
+
+  /* Memory bar */
+  .memory-bar {
+    display: flex; align-items: center; gap: 4px; margin-bottom: 8px;
+  }
+  .memory-bar button {
+    flex:1; padding: 4px 0; font-size: 0.7rem; border: none;
+    border-radius: 4px; cursor: pointer; background: #3a3a3a; color: #ccc;
+  }
+  .memory-bar button:active { filter: brightness(1.4); }
+  .memory-indicator {
+    font-size: 0.7rem; color: #888; margin-left: 8px; white-space: nowrap;
+  }
+  .history-toggle {
+    font-size: 0.7rem; padding: 4px 8px; border: none;
+    border-radius: 4px; cursor: pointer; background: #3a3a3a; color: #ccc;
+  }
+
+  /* History panel */
+  .history-panel {
+    display: none; background: #1a1a1a; border-radius: 6px;
+    padding: 8px; margin-bottom: 8px; max-height: 120px; overflow-y: auto;
+    font-size: 0.8rem; color: #aaa;
+  }
+  .history-panel.show { display: block; }
+  .history-panel .entry {
+    padding: 3px 0; border-bottom: 1px solid #333;
+    cursor: pointer;
+  }
+  .history-panel .entry:hover { color: #fff; }
+  .history-clear { font-size: 0.65rem; color: #e53935; cursor: pointer; float: right; }
+
+  /* Button grid */
+  .buttons { display: none; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+  .buttons.active { display: grid; }
+  .buttons.scimode { grid-template-columns: repeat(5, 1fr); }
+  .buttons.progmode { grid-template-columns: repeat(5, 1fr); }
+  .buttons.convmode { display: none; }
+  .buttons.convmode.active { display: flex; flex-direction: column; gap: 10px; }
+
+  button {
+    font-size: 1rem; padding: 14px 0; border: none;
+    border-radius: 8px; cursor: pointer; color: #fff; transition: filter 0.1s;
+  }
+  button:active { filter: brightness(1.4); }
+  .digit, .dot { background: #424242; }
+  .op { background: #555; }
+  .clear { background: #e53935; }
+  .equals { background: #43a047; }
+  .mem { background: #3a3a3a; font-size: 0.85rem; }
+  .sci { background: #3e3e50; font-size: 0.85rem; }
+  .const { background: #4a3e50; }
+  .paren { background: #4a4a3e; }
+  .prog { background: #3e4a50; font-size: 0.85rem; }
+  .hex-btn { background: #4a4040; }
+  .wide { grid-column: span 2; }
+
+  /* Converter */
+  .converter select, .converter input {
+    background: #3a3a3a; color: #fff; border: none; padding: 10px;
+    border-radius: 6px; font-size: 0.9rem; width: 100%;
+  }
+  .converter .conv-row { display: flex; gap: 8px; align-items: center; }
+  .converter .conv-row > * { flex: 1; }
+  .converter label { color: #888; font-size: 0.75rem; display: block; margin-bottom: 4px; }
+  .conv-result {
+    background: #1e1e1e; color: #43a047; padding: 12px;
+    border-radius: 8px; text-align: center; font-size: 1.3rem; min-height: 48px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .conv-swap { flex: 0 0 auto !important; font-size: 1.2rem; cursor: pointer; color: #888; padding: 4px 8px; }
+</style>
+</head>
+<body>
+<div class="calculator">
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="standard">Standard</button>
+    <button class="tab" data-tab="scientific">Scientific</button>
+    <button class="tab" data-tab="programmer">Programmer</button>
+    <button class="tab" data-tab="converter">Converter</button>
+  </div>
+
+  <!-- Display -->
+  <div class="display">
+    <div class="display-expr" id="exprDisplay"></div>
+    <div class="display-result" id="resultDisplay">0</div>
+  </div>
+
+  <!-- Memory bar -->
+  <div class="memory-bar">
+    <button class="mem" onclick="memoryClear()">MC</button>
+    <button class="mem" onclick="memoryRecall()">MR</button>
+    <button class="mem" onclick="memoryAdd()">M+</button>
+    <button class="mem" onclick="memorySub()">M-</button>
+    <span class="memory-indicator" id="memIndicator"></span>
+    <button class="history-toggle" onclick="toggleHistory()">Hist ▼</button>
+  </div>
+
+  <!-- History -->
+  <div class="history-panel" id="historyPanel"></div>
+
+  <!-- Tab: Standard -->
+  <div class="buttons active" id="standardButtons">
+    <button class="clear" onclick="onClick('C')">C</button>
+    <button class="op" onclick="onClick('/')">/</button>
+    <button class="op" onclick="onClick('*')">×</button>
+    <button class="op" onclick="onClick('⌫')">⌫</button>
+    <button class="op" onclick="onClick('%')">%</button>
+    <button class="digit" onclick="onClick('7')">7</button>
+    <button class="digit" onclick="onClick('8')">8</button>
+    <button class="digit" onclick="onClick('9')">9</button>
+    <button class="op" onclick="onClick('-')">-</button>
+    <button class="paren" onclick="onClick('(')">(</button>
+    <button class="digit" onclick="onClick('4')">4</button>
+    <button class="digit" onclick="onClick('5')">5</button>
+    <button class="digit" onclick="onClick('6')">6</button>
+    <button class="op" onclick="onClick('+')">+</button>
+    <button class="paren" onclick="onClick(')')">)</button>
+    <button class="digit" onclick="onClick('1')">1</button>
+    <button class="digit" onclick="onClick('2')">2</button>
+    <button class="digit" onclick="onClick('3')">3</button>
+    <button class="equals" onclick="onClick('=')">=</button>
+    <button class="const" onclick="onClick('pi')">π</button>
+    <button class="digit wide" onclick="onClick('0')">0</button>
+    <button class="dot" onclick="onClick('.')">.</button>
+  </div>
+
+  <!-- Tab: Scientific -->
+  <div class="buttons scimode" id="scientificButtons">
+    <button class="sci" onclick="sciFunc('sin')">sin</button>
+    <button class="sci" onclick="sciFunc('cos')">cos</button>
+    <button class="sci" onclick="sciFunc('tan')">tan</button>
+    <button class="sci" onclick="sciFunc('log')">log</button>
+    <button class="sci" onclick="sciFunc('ln')">ln</button>
+    <button class="sci" onclick="sciFunc('sqrt')">√</button>
+    <button class="sci" onclick="sciFunc('sqr')">x²</button>
+    <button class="sci" onclick="sciFunc('pow')">xʸ</button>
+    <button class="sci" onclick="sciFunc('fact')">n!</button>
+    <button class="sci" onclick="sciFunc('inv')">1/x</button>
+    <button class="const" onclick="onClick('pi')">π</button>
+    <button class="const" onclick="onClick('e')">e</button>
+    <button class="clear" onclick="onClick('C')">C</button>
+    <button class="op" onclick="onClick('⌫')">⌫</button>
+    <button class="paren" onclick="onClick('(')">(</button>
+    <button class="digit" onclick="onClick('7')">7</button>
+    <button class="digit" onclick="onClick('8')">8</button>
+    <button class="digit" onclick="onClick('9')">9</button>
+    <button class="op" onclick="onClick('/')">/</button>
+    <button class="paren" onclick="onClick(')')">)</button>
+    <button class="digit" onclick="onClick('4')">4</button>
+    <button class="digit" onclick="onClick('5')">5</button>
+    <button class="digit" onclick="onClick('6')">6</button>
+    <button class="op" onclick="onClick('*')">×</button>
+    <button class="op" onclick="onClick('%')">%</button>
+    <button class="digit" onclick="onClick('1')">1</button>
+    <button class="digit" onclick="onClick('2')">2</button>
+    <button class="digit" onclick="onClick('3')">3</button>
+    <button class="op" onclick="onClick('-')">-</button>
+    <button class="equals" onclick="onClick('=')">=</button>
+    <button class="digit wide" onclick="onClick('0')">0</button>
+    <button class="dot" onclick="onClick('.')">.</button>
+    <button class="op" onclick="onClick('+')">+</button>
+  </div>
+
+  <!-- Tab: Programmer -->
+  <div class="buttons progmode" id="programmerButtons">
+    <div style="display:flex;gap:4px;margin-bottom:4px;" id="baseDisplay">
+      <button class="prog active" style="flex:1;padding:8px 0;font-size:0.75rem;" onclick="setBase(16)">HEX</button>
+      <button class="prog" style="flex:1;padding:8px 0;font-size:0.75rem;" onclick="setBase(10)">DEC</button>
+      <button class="prog" style="flex:1;padding:8px 0;font-size:0.75rem;" onclick="setBase(8)">OCT</button>
+      <button class="prog" style="flex:1;padding:8px 0;font-size:0.75rem;" onclick="setBase(2)">BIN</button>
+    </div>
+    <button class="prog" onclick="bitwiseOp('&')">AND</button>
+    <button class="prog" onclick="bitwiseOp('|')">OR</button>
+    <button class="prog" onclick="bitwiseOp('^')">XOR</button>
+    <button class="prog" onclick="bitwiseOp('~')">NOT</button>
+    <button class="prog" onclick="bitwiseOp('<<')">&lt;&lt;</button>
+    <button class="prog" onclick="bitwiseOp('>>')">&gt;&gt;</button>
+    <button class="hex-btn" id="btnA" disabled onclick="onClick('A')">A</button>
+    <button class="hex-btn" id="btnB" disabled onclick="onClick('B')">B</button>
+    <button class="hex-btn" id="btnC" disabled onclick="onClick('C')">C</button>
+    <button class="hex-btn" id="btnD" disabled onclick="onClick('D')">D</button>
+    <button class="hex-btn" id="btnE" disabled onclick="onClick('E')">E</button>
+    <button class="hex-btn" id="btnF" disabled onclick="onClick('F')">F</button>
+    <button class="digit" onclick="onClick('7')">7</button>
+    <button class="digit" onclick="onClick('8')">8</button>
+    <button class="digit" onclick="onClick('9')">9</button>
+    <button class="op" onclick="onClick('/')">/</button>
+    <button class="clear" onclick="onClick('C')">C</button>
+    <button class="digit" onclick="onClick('4')">4</button>
+    <button class="digit" onclick="onClick('5')">5</button>
+    <button class="digit" onclick="onClick('6')">6</button>
+    <button class="op" onclick="onClick('*')">×</button>
+    <button class="op" onclick="onClick('⌫')">⌫</button>
+    <button class="digit" onclick="onClick('1')">1</button>
+    <button class="digit" onclick="onClick('2')">2</button>
+    <button class="digit" onclick="onClick('3')">3</button>
+    <button class="op" onclick="onClick('-')">-</button>
+    <button class="equals" onclick="onClick('=')">=</button>
+    <button class="digit wide" onclick="onClick('0')">0</button>
+    <button class="op" onclick="onClick('+')">+</button>
+  </div>
+
+  <!-- Tab: Converter -->
+  <div class="buttons convmode" id="converterButtons">
+    <div class="converter">
+      <label>Category</label>
+      <select id="convCategory" onchange="updateConvUnits()">
+        <option value="length">Length</option>
+        <option value="weight">Weight</option>
+        <option value="temperature">Temperature</option>
+        <option value="currency">Currency</option>
+      </select>
+      <label style="margin-top:8px;">From</label>
+      <div class="conv-row">
+        <input type="number" id="convInput" placeholder="Value" oninput="doConvert()">
+        <select id="convFrom" onchange="doConvert()"></select>
+      </div>
+      <div style="text-align:center;margin:6px 0;">
+        <span class="conv-swap" onclick="swapConvUnits()" title="Swap units">⇅</span>
+      </div>
+      <label>To</label>
+      <div class="conv-row">
+        <select id="convTo" onchange="doConvert()"></select>
+      </div>
+      <div class="conv-result" id="convResult">—</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────
+let expr = '';
+let memory = 0;
+let history = [];
+let activeTab = 'standard';
+let progBase = 10;
+let lastResult = null;
+
+const exprDisp = document.getElementById('exprDisplay');
+const resDisp = document.getElementById('resultDisplay');
+const historyPanel = document.getElementById('historyPanel');
+const memIndicator = document.getElementById('memIndicator');
+
+// ── Display helpers ───────────────
+function updateDisplay() {
+  exprDisp.textContent = expr || '';
+  resDisp.textContent = lastResult != null ? '= ' + lastResult : expr || '0';
+  if (expr && activeTab !== 'programmer') {
+    try {
+      const preview = Function('"use strict"; return (' + mapExpr(expr) + ')')();
+      if (typeof preview === 'number' && Number.isFinite(preview)) {
+        resDisp.textContent = '≈ ' + formatNum(preview);
+      }
+    } catch(e) {}
+  }
+}
+
+function mapExpr(e) {
+  let s = e.replace(/×/g, '*').replace(/÷/g, '/').replace(/π/g, 'Math.PI');
+  if (activeTab !== 'programmer') {
+    s = s.replace(/(\d+\.?\d*)%/g, '($1/100)');
+  }
+  return s;
+}
+
+function formatNum(n) {
+  if (!Number.isFinite(n)) return 'Error';
+  if (Number.isInteger(n) && Math.abs(n) < 1e15) return String(n);
+  return parseFloat(n.toPrecision(12)).toString();
+}
+
+// ── Memory ────────────────────────
+function memoryClear() { memory = 0; updateMemIndicator(); }
+function memoryRecall() {
+  expr += memory; lastResult = null; updateDisplay();
+}
+function memoryAdd() {
+  const val = lastResult != null ? Number(lastResult) : (expr ? safeEval(mapExpr(expr)) : 0);
+  if (Number.isFinite(val)) memory += val;
+  updateMemIndicator();
+}
+function memorySub() {
+  const val = lastResult != null ? Number(lastResult) : (expr ? safeEval(mapExpr(expr)) : 0);
+  if (Number.isFinite(val)) memory -= val;
+  updateMemIndicator();
+}
+function updateMemIndicator() {
+  memIndicator.textContent = memory !== 0 ? 'M: ' + formatNum(memory) : '';
+}
+
+// ── History ───────────────────────
+function addHistory(ex, res) {
+  history.unshift({ expr: ex, result: res });
+  if (history.length > 50) history.pop();
+  renderHistory();
+}
+function renderHistory() {
+  if (history.length === 0) {
+    historyPanel.innerHTML = '<span style="color:#666;">No history</span>';
+  } else {
+    historyPanel.innerHTML = '<span class="history-clear" onclick="clearHistory()">clear</span>' +
+      history.map((h, i) =>
+        `<div class="entry" onclick="recallHistory(${i})">${h.expr} = <b>${h.result}</b></div>`
+      ).join('');
+  }
+}
+function toggleHistory() {
+  historyPanel.classList.toggle('show');
+}
+function recallHistory(i) {
+  const h = history[i];
+  expr = h.expr;
+  lastResult = h.result;
+  updateDisplay();
+}
+function clearHistory() {
+  history = [];
+  renderHistory();
+}
+
+// ── Safe eval ─────────────────────
+function safeEval(str) {
+  return Function('"use strict"; return (' + str + ')')();
+}
+
+// ── Main click handler ────────────
+function onClick(ch) {
+  if (ch === 'C') {
+    expr = ''; lastResult = null; updateDisplay();
+  } else if (ch === '⌫') {
+    expr = expr.slice(0, -1); lastResult = null; updateDisplay();
+  } else if (ch === '=') {
+    if (!expr) return;
+    try {
+      const mapped = mapExpr(expr);
+      let result = safeEval(mapped);
+      if (!Number.isFinite(result)) throw new Error('Invalid');
+      result = formatNum(result);
+      addHistory(expr, result);
+      lastResult = result;
+      expr = result;
+      updateDisplay();
+    } catch(e) {
+      resDisp.textContent = 'Error';
+      setTimeout(() => { expr = ''; lastResult = null; updateDisplay(); }, 600);
+    }
+  } else if (ch === 'pi') {
+    expr += 'π'; lastResult = null; updateDisplay();
+  } else if (ch === 'e') {
+    expr += String(Math.E); lastResult = null; updateDisplay();
+  } else if (ch === '%') {
+    expr += '%'; lastResult = null; updateDisplay();
+  } else if (ch === '(' || ch === ')') {
+    expr += ch; lastResult = null; updateDisplay();
+  } else if (activeTab === 'programmer' && /^[A-F]$/.test(ch)) {
+    expr += ch; lastResult = null; updateDisplay();
+  } else {
+    expr += ch; lastResult = null; updateDisplay();
+  }
+}
+
+// ── Scientific functions ──────────
+function sciFunc(fn) {
+  const val = lastResult != null ? Number(lastResult) : (expr ? safeEval(mapExpr(expr)) : 0);
+  if (!Number.isFinite(val)) { resDisp.textContent = 'Error'; return; }
+  let result;
+  try {
+    switch(fn) {
+      case 'sin': result = Math.sin(val * Math.PI / 180); break;
+      case 'cos': result = Math.cos(val * Math.PI / 180); break;
+      case 'tan': result = Math.tan(val * Math.PI / 180); break;
+      case 'log': result = Math.log10(val); break;
+      case 'ln': result = Math.log(val); break;
+      case 'sqrt': result = Math.sqrt(val); break;
+      case 'sqr': result = val * val; break;
+      case 'pow':
+        expr = String(val) + '**';
+        lastResult = null; updateDisplay();
+        return;
+      case 'fact':
+        if (val < 0 || !Number.isInteger(val)) { resDisp.textContent = 'Error'; return; }
+        result = 1;
+        for (let i = 2; i <= val; i++) result *= i;
+        break;
+      case 'inv': result = 1 / val; break;
+      default: return;
+    }
+    if (!Number.isFinite(result)) { resDisp.textContent = 'Error'; return; }
+    const label = fn === 'sqr' ? 'sqr' : fn === 'inv' ? '1/' : fn;
+    addHistory(label + '(' + formatNum(val) + ')', formatNum(result));
+    expr = formatNum(result);
+    lastResult = formatNum(result);
+    updateDisplay();
+  } catch(e) {
+    resDisp.textContent = 'Error';
+  }
+}
+
+// ── Programmer mode ──────────────
+function setBase(base) {
+  // Convert current value to new base
+  const val = lastResult != null ? Number(lastResult) : (expr ? parseInt(expr, progBase) : 0);
+  if (!Number.isFinite(val)) return;
+  progBase = base;
+  expr = val.toString(base).toUpperCase();
+  lastResult = null;
+  updateDisplay();
+  updateBaseButtons();
+  updateHexButtons();
+}
+
+function updateBaseButtons() {
+  const btns = document.querySelectorAll('#baseDisplay button');
+  btns.forEach((b, i) => {
+    const bases = [16, 10, 8, 2];
+    b.classList.toggle('active', bases[i] === progBase);
+  });
+}
+
+function updateHexButtons() {
+  ['A','B','C','D','E','F'].forEach(h => {
+    const btn = document.getElementById('btn' + h);
+    btn.disabled = progBase !== 16;
+    btn.style.opacity = progBase === 16 ? '1' : '0.4';
+  });
+}
+
+function bitwiseOp(op) {
+  const val = lastResult != null ? Number(lastResult) : (expr ? parseInt(expr, progBase) : 0);
+  if (!Number.isFinite(val) || !Number.isInteger(val)) {
+    resDisp.textContent = 'Error'; return;
+  }
+  if (op === '~') {
+    const result = ~val;
+    addHistory('~' + val.toString(progBase).toUpperCase(), result.toString(progBase).toUpperCase());
+    expr = result.toString(progBase).toUpperCase();
+    lastResult = result.toString(progBase).toUpperCase();
+    updateDisplay();
+    return;
+  }
+  // Binary ops: store value and operator, wait for second operand then =
+  expr = val.toString(progBase).toUpperCase() + ' ' + op + ' ';
+  lastResult = null;
+  updateDisplay();
+}
+
+// Override = for programmer mode (handles bitwise binary ops)
+const origOnClick = onClick;
+onClick = function(ch) {
+  if (activeTab === 'programmer' && ch === '=' && expr.includes(' ') && !/^[0-9A-F]+$/.test(expr.trim())) {
+    const parts = expr.trim().split(/\s+/);
+    if (parts.length === 3) {
+      const a = parseInt(parts[0], progBase);
+      const op = parts[1];
+      const b = parseInt(parts[2], progBase);
+      let result;
+      switch(op) {
+        case '&': result = a & b; break;
+        case '|': result = a | b; break;
+        case '^': result = a ^ b; break;
+        case '<<': result = a << b; break;
+        case '>>': result = a >> b; break;
+        default: return;
+      }
+      const resStr = result.toString(progBase).toUpperCase();
+      addHistory(expr, resStr);
+      expr = resStr;
+      lastResult = resStr;
+      updateDisplay();
+      return;
+    }
+  }
+  origOnClick(ch);
+};
+
+// ── Unit converter ────────────────
+const convUnits = {
+  length: {
+    m: 1, km: 1000, cm: 0.01, mm: 0.001,
+    mi: 1609.344, yd: 0.9144, ft: 0.3048, in: 0.0254
+  },
+  weight: {
+    kg: 1, g: 0.001, mg: 1e-6,
+    lb: 0.453592, oz: 0.0283495
+  },
+  temperature: null, // special handling
+  currency: {
+    USD: 1, EUR: 1.08, GBP: 1.27, JPY: 0.0067, CNY: 0.14, AUD: 0.65, CAD: 0.73
+  }
+};
+
+function updateConvUnits() {
+  const cat = document.getElementById('convCategory').value;
+  const fromSel = document.getElementById('convFrom');
+  const toSel = document.getElementById('convTo');
+  fromSel.innerHTML = ''; toSel.innerHTML = '';
+  const units = Object.keys(convUnits[cat] || {});
+  if (cat === 'temperature') {
+    ['C','F','K'].forEach(u => {
+      fromSel.add(new Option(u, u));
+      toSel.add(new Option(u, u));
+    });
+    toSel.value = 'F';
+  } else {
+    units.forEach(u => {
+      fromSel.add(new Option(u, u));
+      toSel.add(new Option(u, u));
+    });
+    if (cat === 'length') { fromSel.value = 'm'; toSel.value = 'ft'; }
+    else if (cat === 'weight') { fromSel.value = 'kg'; toSel.value = 'lb'; }
+    else { fromSel.value = 'USD'; toSel.value = 'EUR'; }
+  }
+  doConvert();
+}
+
+function doConvert() {
+  const cat = document.getElementById('convCategory').value;
+  const from = document.getElementById('convFrom').value;
+  const to = document.getElementById('convTo').value;
+  const val = parseFloat(document.getElementById('convInput').value);
+  const out = document.getElementById('convResult');
+  if (isNaN(val)) { out.textContent = '—'; return; }
+  let result;
+  if (cat === 'temperature') {
+    let celsius;
+    if (from === 'C') celsius = val;
+    else if (from === 'F') celsius = (val - 32) * 5/9;
+    else celsius = val - 273.15;
+    if (to === 'C') result = celsius;
+    else if (to === 'F') result = celsius * 9/5 + 32;
+    else result = celsius + 273.15;
+  } else {
+    const base = val * convUnits[cat][from];
+    result = base / convUnits[cat][to];
+  }
+  out.textContent = formatNum(result) + ' ' + to;
+}
+
+function swapConvUnits() {
+  const fromSel = document.getElementById('convFrom');
+  const toSel = document.getElementById('convTo');
+  const tmp = fromSel.value;
+  fromSel.value = toSel.value;
+  toSel.value = tmp;
+  doConvert();
+}
+
+// ── Tab switching ─────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  expr = ''; lastResult = null; updateDisplay();
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.buttons').forEach(b => b.classList.remove('active'));
+  const btnMap = {
+    standard: 'standardButtons',
+    scientific: 'scientificButtons',
+    programmer: 'programmerButtons',
+    converter: 'converterButtons'
+  };
+  document.getElementById(btnMap[tab]).classList.add('active');
+  if (tab === 'converter') { updateConvUnits(); }
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => switchTab(t.dataset.tab));
+});
+
+// ── Keyboard support ─────────────
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const key = e.key;
+  if (activeTab === 'converter') return;
+  // Digits
+  if (/^[0-9]$/.test(key)) { e.preventDefault(); onClick(key); }
+  // Operators
+  else if (key === '+') { e.preventDefault(); onClick('+'); }
+  else if (key === '-') { e.preventDefault(); onClick('-'); }
+  else if (key === '*') { e.preventDefault(); onClick('*'); }
+  else if (key === '/') { e.preventDefault(); onClick('/'); }
+  else if (key === '%') { e.preventDefault(); onClick('%'); }
+  else if (key === '.') { e.preventDefault(); onClick('.'); }
+  else if (key === '(') { e.preventDefault(); onClick('('); }
+  else if (key === ')') { e.preventDefault(); onClick(')'); }
+  // Enter = equals
+  else if (key === 'Enter') { e.preventDefault(); onClick('='); }
+  // Escape = clear
+  else if (key === 'Escape') { e.preventDefault(); onClick('C'); }
+  // Backspace
+  else if (key === 'Backspace') { e.preventDefault(); onClick('⌫'); }
+  // Hex letters in programmer mode
+  else if (/^[a-fA-F]$/.test(key) && activeTab === 'programmer' && progBase === 16) {
+    e.preventDefault(); onClick(key.toUpperCase());
+  }
+});
+
+// Init
+updateDisplay();
+renderHistory();
+updateBaseButtons();
+</script>
+</body>
+</html>
