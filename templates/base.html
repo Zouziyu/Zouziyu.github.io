@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('pygments_css') }}">
   <link rel="alternate" type="application/rss+xml" href="{{ url_for('feed') }}" title="My Blog RSS">
+  <link rel="stylesheet" href="/pagefind/pagefind-ui.css">
 </head>
 <body>
   <div class="container">
@@ -119,29 +120,33 @@
     function updateToggleIcon() {
       const icon = document.getElementById('theme-toggle');
       if (!icon) return;
-      const dark = icon.querySelector('.theme-icon-dark');
-      const light = icon.querySelector('.theme-icon-light');
+      const moon = icon.querySelector('.theme-icon-dark');
+      const sun = icon.querySelector('.theme-icon-light');
       const theme = document.documentElement.getAttribute('data-theme');
       if (theme === 'light') {
-        dark.style.display = 'inline';
-        light.style.display = 'none';
+        moon.style.display = 'none';
+        sun.style.display = 'inline';
       } else if (theme === 'dark') {
-        dark.style.display = 'none';
-        light.style.display = 'inline';
+        moon.style.display = 'inline';
+        sun.style.display = 'none';
       } else {
-        dark.style.display = 'inline';
-        light.style.display = 'none';
+        moon.style.display = 'inline';
+        sun.style.display = 'none';
       }
     }
+  </script>
+
+  <script type="module">
+    import { search as pagefindSearch } from '/pagefind/pagefind.js';
 
     // ── Search ────────────────────────
-    function openSearch() {
+    window.openSearch = function() {
       document.getElementById('search-overlay').classList.add('active');
       document.getElementById('search-input').focus();
       document.getElementById('search-input').value = '';
       document.getElementById('search-results').innerHTML = '';
       document.getElementById('search-empty').style.display = 'none';
-    }
+    };
 
     document.addEventListener('click', function(e) {
       if (e.target === document.getElementById('search-overlay')) {
@@ -156,16 +161,13 @@
     });
 
     document.getElementById('search-input').addEventListener('input', function() {
-      var q = this.value.trim().toLowerCase();
+      var q = this.value.trim();
       var results = document.getElementById('search-results');
       var empty = document.getElementById('search-empty');
       results.innerHTML = '';
       if (!q) { empty.style.display = 'none'; return; }
-      if (typeof pagefind === 'undefined') {
-        empty.style.display = 'block';
-        return;
-      }
-      pagefind.search(q).then(function(res) {
+
+      pagefindSearch(q).then(function(res) {
         if (!res.results.length) {
           empty.style.display = 'block';
           return;
