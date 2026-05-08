@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,8 +15,14 @@
       <nav>
         <a href="{{ url_for('index') }}">Posts</a>
         <a href="{{ url_for('feed') }}">RSS</a>
+        <button class="search-btn" onclick="openSearch()" aria-label="Search">&#x1F50D;</button>
+        <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+          <span class="theme-icon-dark">&#x1F319;</span>
+          <span class="theme-icon-light">&#x2600;&#xFE0F;</span>
+        </button>
       </nav>
     </header>
+
     <div class="layout">
       <main>
         {% block content %}{% endblock %}
@@ -30,6 +36,18 @@
           {% endif %}
           <div class="profile-name">{{ blog_author }}</div>
           <div class="profile-desc">{{ blog_description }}</div>
+        </div>
+        <div class="sidebar-section">
+          <h3>Subscribe</h3>
+          <form
+            class="newsletter-form"
+            action="https://buttondown.email/api/emails/embed-subscribe/USERNAME"
+            method="post"
+            target="_blank"
+          >
+            <input type="email" name="email" placeholder="your@email.com" required>
+            <button type="submit">Subscribe</button>
+          </form>
         </div>
         <div class="sidebar-section">
           <h3>Tags</h3>
@@ -59,6 +77,113 @@
       <span>Generated with Flask &mdash; <a href="{{ url_for('feed') }}">RSS Feed</a></span>
     </footer>
   </div>
+
+  <!-- Search overlay -->
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-panel">
+      <input type="text" class="search-input" id="search-input" placeholder="Search posts..." autofocus>
+      <div class="search-results" id="search-results"></div>
+      <div class="search-empty" id="search-empty" style="display:none">No results found</div>
+    </div>
+  </div>
+
+  <script>
+    // ── Theme toggle ──────────────────
+    (function() {
+      const html = document.documentElement;
+      const saved = localStorage.getItem('theme');
+      if (saved === 'light' || saved === 'dark') {
+        html.setAttribute('data-theme', saved);
+      } else {
+        html.removeAttribute('data-theme');
+      }
+      updateToggleIcon();
+    })();
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      if (current === 'dark') {
+        html.setAttribute('data-theme', 'light');
+        localStorage.setItem('theme', 'light');
+      } else if (current === 'light') {
+        html.removeAttribute('data-theme');
+        localStorage.removeItem('theme');
+      } else {
+        html.setAttribute('data-theme', 'light');
+        localStorage.setItem('theme', 'light');
+      }
+      updateToggleIcon();
+    }
+
+    function updateToggleIcon() {
+      const icon = document.getElementById('theme-toggle');
+      if (!icon) return;
+      const dark = icon.querySelector('.theme-icon-dark');
+      const light = icon.querySelector('.theme-icon-light');
+      const theme = document.documentElement.getAttribute('data-theme');
+      if (theme === 'light') {
+        dark.style.display = 'inline';
+        light.style.display = 'none';
+      } else if (theme === 'dark') {
+        dark.style.display = 'none';
+        light.style.display = 'inline';
+      } else {
+        dark.style.display = 'inline';
+        light.style.display = 'none';
+      }
+    }
+
+    // ── Search ────────────────────────
+    function openSearch() {
+      document.getElementById('search-overlay').classList.add('active');
+      document.getElementById('search-input').focus();
+      document.getElementById('search-input').value = '';
+      document.getElementById('search-results').innerHTML = '';
+      document.getElementById('search-empty').style.display = 'none';
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target === document.getElementById('search-overlay')) {
+        document.getElementById('search-overlay').classList.remove('active');
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        document.getElementById('search-overlay').classList.remove('active');
+      }
+    });
+
+    document.getElementById('search-input').addEventListener('input', function() {
+      var q = this.value.trim().toLowerCase();
+      var results = document.getElementById('search-results');
+      var empty = document.getElementById('search-empty');
+      results.innerHTML = '';
+      if (!q) { empty.style.display = 'none'; return; }
+      if (typeof pagefind === 'undefined') {
+        empty.style.display = 'block';
+        return;
+      }
+      pagefind.search(q).then(function(res) {
+        if (!res.results.length) {
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        res.results.slice(0, 10).forEach(function(r) {
+          r.data().then(function(d) {
+            var a = document.createElement('a');
+            a.href = d.url;
+            a.innerHTML = '<div class="result-title">' + (d.meta ? d.meta.title : d.url) + '</div>'
+                        + '<div class="result-context">' + (d.excerpt || '') + '</div>';
+            results.appendChild(a);
+          });
+        });
+      });
+    });
+  </script>
+
   <script data-goatcounter="https://zouziyu.goatcounter.com/count"
           async src="//gc.zgo.at/count.js"></script>
 </body>

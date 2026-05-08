@@ -1,6 +1,7 @@
 """Generate a static copy of the blog in docs/ for GitHub Pages deployment."""
 import os
 import shutil
+import subprocess
 import sys
 
 # Add current dir to path so we can import myblog
@@ -9,10 +10,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from myblog import app, get_posts, get_all_tags, get_all_categories, STATIC_DIR
 
 OUTPUT_DIR = "docs"
-
-# Set to "/repo-name" if deploying to username.github.io/repo-name/
-# Leave as "" if deploying to username.github.io or a custom domain
-SITE_PREFIX = ""
+SITE_URL = "https://zouziyu.github.io"
+SITE_PREFIX = ""  # always empty for username.github.io
 
 
 def freeze():
@@ -34,13 +33,14 @@ def freeze():
             print(f"  SKIP {url} → {resp.status_code}")
             return
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        html = resp.data.decode("utf-8")
+        content = resp.data.decode("utf-8")
         if SITE_PREFIX:
-            html = html.replace('href="/', f'href="{SITE_PREFIX}/')
-            html = html.replace('src="/', f'src="{SITE_PREFIX}/')
-            html = html.replace('action="/', f'action="{SITE_PREFIX}/')
+            content = content.replace('href="/', f'href="{SITE_PREFIX}/')
+            content = content.replace('src="/', f'src="{SITE_PREFIX}/')
+            content = content.replace('action="/', f'action="{SITE_PREFIX}/')
+        content = content.replace("http://localhost", SITE_URL)
         with open(filepath, "w", encoding="utf-8") as f:
-            f.write(html)
+            f.write(content)
         print(f"  {url} → {filepath}")
 
     print("Freezing blog...")
@@ -61,9 +61,20 @@ def freeze():
     for cat in get_all_categories(get_posts()):
         save(f"/category/{cat}", os.path.join(OUTPUT_DIR, "category", cat, "index.html"))
 
-    # Feed & pygments CSS
+    # Feed & pygments CSS & sitemap
     save("/feed.xml", os.path.join(OUTPUT_DIR, "feed.xml"))
     save("/pygments.css", os.path.join(OUTPUT_DIR, "pygments.css"))
+    save("/sitemap.xml", os.path.join(OUTPUT_DIR, "sitemap.xml"))
+
+    # Pagefind index
+    try:
+        subprocess.run(
+            ["npx", "pagefind", "--site", OUTPUT_DIR],
+            check=True, timeout=120,
+        )
+        print("  Pagefind index built")
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"  Pagefind skipped: {e}")
 
     print(f"\nDone — site frozen to {OUTPUT_DIR}/")
 

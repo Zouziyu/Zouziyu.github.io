@@ -1,10 +1,11 @@
 import os
+import re
 import time
 from datetime import datetime, timezone
 
 import frontmatter
 import markdown
-from flask import Flask, render_template, request, url_for, abort, redirect
+from flask import Flask, render_template, request, url_for, abort, redirect, make_response
 from feedgen.feed import FeedGenerator
 from pygments.formatters import HtmlFormatter
 
@@ -43,6 +44,7 @@ def load_posts():
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
 
+        html = render_markdown(post.content)
         posts.append({
             "slug": slug,
             "title": post.get("title", slug.replace("-", " ").title()),
@@ -50,7 +52,8 @@ def load_posts():
             "tags": tags,
             "category": post.get("category", "uncategorized"),
             "content": post.content,
-            "html": render_markdown(post.content),
+            "html": html,
+            "minutes": reading_time(html),
         })
 
     posts.sort(key=lambda p: p["date"], reverse=True)
@@ -65,10 +68,16 @@ def get_posts():
     return _cache["posts"]
 
 
+def reading_time(html_content):
+    text = re.sub(r"<[^>]+>", "", html_content)
+    words = len(text.split())
+    return max(1, round(words / 200))
+
+
 def render_markdown(content):
     return markdown.markdown(
         content,
-        extensions=["fenced_code", "codehilite", "tables", "nl2br"],
+        extensions=["fenced_code", "codehilite", "tables", "nl2br", "toc"],
         extension_configs={"codehilite": {"guess_lang": False}},
     )
 
@@ -182,6 +191,29 @@ def admin_remove_avatar():
     if os.path.exists(avatar_path):
         os.remove(avatar_path)
     return redirect("/admin")
+
+
+@app.route("/sitemap.xml")
+def sitemap():
+    posts = get_posts()
+    tags = get_all_tags(posts)
+    categories = get_all_categories(posts)
+    base = request.url_root.rstrip("/")
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>']
+    lines.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+    lines.append(f"  <url><loc>{base}/</loc></url>")
+    for p in posts:
+        url = base + url_for("post_view", slug=p["slug"])
+        lastmod = p["date"].strftime("%Y-%m-%d")
+        lines.append(f"  <url><loc>{url}</loc><lastmod>{lastmod}</lastmod></url>")
+    for tag in tags:
+        url = base + url_for("tag_view", tag=tag)
+        lines.append(f"  <url><loc>{url}</loc></url>")
+    for cat in categories:
+        url = base + url_for("category_view", cat=cat)
+        lines.append(f"  <url><loc>{url}</loc></url>")
+    lines.append("</urlset>")
+    return make_response("\n".join(lines), 200, {"Content-Type": "application/xml"})
 
 
 @app.errorhandler(404)

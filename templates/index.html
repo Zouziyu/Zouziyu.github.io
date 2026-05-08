@@ -7,6 +7,7 @@
     <h2><a href="{{ url_for('post_view', slug=post.slug) }}">{{ post.title }}</a></h2>
     <div class="post-meta">
       <time datetime="{{ post.date.isoformat() }}">{{ post.date.strftime('%B %d, %Y') }}</time>
+      &middot; <span>{{ post.minutes }} min read</span>
       {% if post.category %}
       &middot; <a href="{{ url_for('category_view', cat=post.category) }}">{{ post.category }}</a>
       {% endif %}
