@@ -1,2 +1,3 @@
 # Zouziyu.github.io
-blog
+
+a simple blog
