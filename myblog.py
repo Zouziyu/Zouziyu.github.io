@@ -143,7 +143,7 @@ def feed():
     fg = FeedGenerator()
     fg.title("Z.Zone")
     fg.link(href=request.url_root, rel="alternate")
-    fg.description("A personal dev blog")
+    fg.description("A personal blog")
     fg.id(request.url_root)
 
     for p in posts:

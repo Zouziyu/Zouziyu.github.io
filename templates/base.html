@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}My Blog{% endblock %}</title>
+  <title>{% block title %}Z.Zone{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('pygments_css') }}">
-  <link rel="alternate" type="application/rss+xml" href="{{ url_for('feed') }}" title="My Blog RSS">
+  <link rel="alternate" type="application/rss+xml" href="{{ url_for('feed') }}" title="Z.Zone RSS">
   <link rel="stylesheet" href="/pagefind/pagefind-ui.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <a href="{{ url_for('index') }}" class="logo">My Blog</a>
+      <a href="{{ url_for('index') }}" class="logo">Z.Zone</a>
       <nav>
         <a href="{{ url_for('index') }}">Posts</a>
         <a href="{{ url_for('feed') }}">RSS</a>
