@@ -13,7 +13,7 @@ app = Flask(__name__)
 POSTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "posts")
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 BLOG_AUTHOR = "Joey Chow"
-BLOG_DESCRIPTION = "A personal dev blog"
+BLOG_DESCRIPTION = "A personal blog"
 
 _cache = {"posts": None, "time": 0}
 
@@ -141,7 +141,7 @@ def category_view(cat):
 def feed():
     posts = get_posts()[:20]
     fg = FeedGenerator()
-    fg.title("My Blog")
+    fg.title("Z.Zone")
     fg.link(href=request.url_root, rel="alternate")
     fg.description("A personal dev blog")
     fg.id(request.url_root)
