@@ -19,5 +19,31 @@
   <div class="post-body">
     {{ post.html | safe }}
   </div>
+
+  <section class="post-interactions">
+    <div class="post-view-count">
+      <span class="view-count" data-goatcounter="{{ post.slug }}"></span>
+    </div>
+  </section>
+
+  <section class="post-comments">
+    <h2>Comments</h2>
+    <script src="https://giscus.app/client.js"
+            data-repo="Zouziyu/Zouziyu.github.io"
+            data-repo-id="R_kgDOR2A0Ag"
+            data-category="General"
+            data-category-id="DIC_kwDOR2A0As4C8jih"
+            data-mapping="pathname"
+            data-strict="0"
+            data-reactions-enabled="1"
+            data-emit-metadata="0"
+            data-input-position="top"
+            data-theme="preferred_color_scheme"
+            data-lang="en"
+            data-loading="lazy"
+            crossorigin="anonymous"
+            async>
+    </script>
+  </section>
 </article>
 {% endblock %}
